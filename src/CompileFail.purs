@@ -8,6 +8,8 @@ import Data.String as String
 import Data.String.Pattern (Pattern(..))
 import Effect.Aff (Aff)
 import Node.ChildProcess.Types (Exit(..))
+import Node.Encoding (Encoding(..))
+import Node.FS.Aff as FS
 import Node.Library.Execa (execa)
 
 type CompileFailResult =
@@ -45,25 +47,12 @@ parseExpect content = do
   let firstLine = String.take (String.indexOf (Pattern "\n") content # fromMaybe (String.length content)) content
   String.stripPrefix (Pattern "-- EXPECT: ") firstLine
 
--- | Compile a single file and check whether it fails with the expected error
+-- | Compile a single file and check whether it fails with the expected error.
+-- | Reads the file to extract the EXPECT comment.
 compileFile :: CompileContext -> String -> Aff CompileFailResult
 compileFile ctx filePath = do
-  spawned <- execa "npx" (["purs", "compile", "--output", ctx.outputDir] <> ctx.sources <> [filePath]) identity
-  result <- spawned.getResult
-  let output = result.stdout <> result.stderr
-  let compilationFailed = case result.exit of
-        Normally 0 -> false
-        _ -> true
-  let expected = parseExpect output
-  pure
-    { file: filePath
-    , expected
-    , output
-    , compilationFailed
-    , containsExpected: case expected of
-        Just substr -> String.contains (Pattern substr) output
-        Nothing -> true
-    }
+  content <- FS.readTextFile UTF8 filePath
+  compileFileWithContent ctx filePath content
 
 -- | Compile a file whose content is provided, checking against the EXPECT comment
 compileFileWithContent :: CompileContext -> String -> String -> Aff CompileFailResult
