@@ -1,0 +1,10 @@
+{
+  "name": "purescript-compile-fail",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "purescript": "^0.15.15",
+    "spago": "^1.0.3"
+  }
+}
