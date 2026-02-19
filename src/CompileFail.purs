@@ -6,11 +6,12 @@ import Data.Array as Array
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String as String
 import Data.String.Pattern (Pattern(..))
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, finally)
 import Node.ChildProcess.Types (Exit(..))
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
 import Node.Library.Execa (execa)
+import Node.Path as Path
 
 type CompileFailResult =
   { file :: String
@@ -28,7 +29,7 @@ type CompileContext =
 -- | Get source globs from spago, excluding test sources
 spagoSources :: Aff (Array String)
 spagoSources = do
-  spawned <- execa "npx" ["spago", "sources"] identity
+  spawned <- execa "bunx" ["spago", "sources"] identity
   result <- spawned.getResult
   pure
     $ Array.filter (\l -> not (String.null l) && not (String.contains (Pattern "test/") l))
@@ -37,7 +38,7 @@ spagoSources = do
 -- | Warm the purs compile cache by compiling all library sources
 warmCache :: CompileContext -> Aff Unit
 warmCache ctx = do
-  spawned <- execa "npx" (["purs", "compile", "--output", ctx.outputDir] <> ctx.sources) identity
+  spawned <- execa "bunx" (["purs", "compile", "--output", ctx.outputDir] <> ctx.sources) identity
   void spawned.getResult
 
 -- | Parse the expected error from the first line of a file.
@@ -58,7 +59,7 @@ compileFile ctx filePath = do
 compileFileWithContent :: CompileContext -> String -> String -> Aff CompileFailResult
 compileFileWithContent ctx filePath content = do
   let expected = parseExpect content
-  spawned <- execa "npx" (["purs", "compile", "--output", ctx.outputDir] <> ctx.sources <> [filePath]) identity
+  spawned <- execa "bunx" (["purs", "compile", "--output", ctx.outputDir] <> ctx.sources <> [filePath]) identity
   result <- spawned.getResult
   let output = result.stdout <> result.stderr
   let compilationFailed = case result.exit of
@@ -73,3 +74,20 @@ compileFileWithContent ctx filePath content = do
         Just substr -> String.contains (Pattern substr) output
         Nothing -> true
     }
+
+compileSpagoFile
+  :: { projectRoot :: String }
+  -> String
+  -> Aff { exitCode :: Int, stderr :: String, stdout :: String, file :: String }
+compileSpagoFile { projectRoot } filePath = finally cleanup do
+  content <- FS.readTextFile UTF8 filePath
+  FS.writeTextFile UTF8 tempFile content
+  spawned <- execa "bunx" [ "spago", "build" ] (_ { cwd = Just projectRoot })
+  result <- spawned.getResult
+  let exitCode = case result.exit of
+        Normally code -> code
+        _ -> 1
+  pure { exitCode, stderr: result.stderr, stdout: result.stdout, file: filePath }
+  where
+  tempFile = Path.concat [ projectRoot, "src", "_CompileFailTest.purs" ]
+  cleanup = FS.unlink tempFile

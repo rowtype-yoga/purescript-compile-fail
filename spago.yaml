@@ -1,11 +1,11 @@
 workspace:
   packageSet:
-    registry: 63.2.1
+    registry: 73.0.0
 
 package:
   name: compile-fail
   publish:
-    version: 0.2.0
+    version: 0.3.0
     license: MIT
     location:
       githubOwner: rowtype-yoga
@@ -20,3 +20,10 @@ package:
     - node-fs: ">=9.0.0 <10.0.0"
     - node-buffer: ">=9.0.0 <10.0.0"
     - strings: ">=6.0.1 <7.0.0"
+    - spec: ">=8.0.0 <9.0.0"
+    - effect: ">=4.0.0 <5.0.0"
+    - either: ">=6.0.0 <7.0.0"
+    - exceptions: ">=6.0.0 <7.0.0"
+    - foldable-traversable: ">=6.0.0 <7.0.0"
+    - node-process: ">=11.0.0 <12.0.0"
+    - node-path: ">=5.0.0 <6.0.0"
