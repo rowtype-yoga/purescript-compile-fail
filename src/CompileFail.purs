@@ -2,7 +2,10 @@ module CompileFail where
 
 import Prelude
 
+import CompileFail.CustomError (preferredFailureOutput)
+import CompileFail.Golden (checkGoldenWithDiff)
 import Data.Array as Array
+import Data.Either (Either)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String as String
 import Data.String.Pattern (Pattern(..))
@@ -74,6 +77,17 @@ compileFileWithContent ctx filePath content = do
         Just substr -> String.contains (Pattern substr) output
         Nothing -> true
     }
+
+checkCompileFileWithGolden
+  :: CompileContext
+  -> { goldenDir :: String, diffDir :: String, testName :: String, filePath :: String }
+  -> Aff (Either String Unit)
+checkCompileFileWithGolden ctx { goldenDir, diffDir, testName, filePath } = do
+  result <- compileFile ctx filePath
+  let actual = if result.compilationFailed
+        then preferredFailureOutput result.output
+        else "COMPILATION SUCCEEDED (expected failure)"
+  checkGoldenWithDiff { goldenDir, diffDir, testName, actual }
 
 compileSpagoFile
   :: { projectRoot :: String }

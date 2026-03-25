@@ -31,6 +31,11 @@ extractCustomError output = do
           Just i -> String.take i acc
     foldl go s bs
 
+preferredFailureOutput :: String -> String
+preferredFailureOutput output = case extractCustomError output of
+  Just customError -> customError
+  Nothing -> output
+
 escapeForJson :: String -> String
 escapeForJson = replaceAll "\\" "\\\\"
   >>> replaceAll "\"" "\\\""

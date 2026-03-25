@@ -2,6 +2,7 @@ module CompileFail.Golden where
 
 import Prelude
 
+import CompileFail.HtmlDiff (writeDiffReport)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.String as String
@@ -48,3 +49,16 @@ checkGolden { goldenDir, testName, actual } = do
             pure GoldenMatch
           Nothing ->
             pure (GoldenMismatch { expected: String.trim content, actual: String.trim actual, goldenPath })
+
+checkGoldenWithDiff
+  :: { goldenDir :: String, diffDir :: String, testName :: String, actual :: String }
+  -> Aff (Either String Unit)
+checkGoldenWithDiff { goldenDir, diffDir, testName, actual } = do
+  goldenResult <- checkGolden { goldenDir, testName, actual }
+  case goldenResult of
+    GoldenMatch -> pure (Right unit)
+    GoldenNew { goldenPath } ->
+      pure (Left ("No golden file at " <> goldenPath <> ", run with UPDATE_GOLDEN=1 to create it"))
+    GoldenMismatch { expected, actual: actualOutput, goldenPath } -> do
+      diffPath <- writeDiffReport { outputDir: diffDir, testName, expected, actual: actualOutput }
+      pure (Left ("Golden mismatch for " <> goldenPath <> "\nDiff report: " <> diffPath))
